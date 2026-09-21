@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @using BTPBlazor.Services
 @inject BtpTempFileService TempFileService
+@inject IWebHostEnvironment WebHostEnvironment
 
 <PageTitle>BTP Temp Message Writer</PageTitle>
 
@@ -18,6 +19,8 @@
 
     <button type="submit" class="btn btn-primary">Write to temp file</button>
 </EditForm>
+
+<button type="button" class="btn btn-secondary mt-3" @onclick="HandleTestLargeXmlClick">Test Large XML</button>
 
 @if (!string.IsNullOrWhiteSpace(_statusMessage))
 {
@@ -48,6 +51,23 @@
             _statusMessage = $"Message was written successfully to {filePath}.";
             _errorMessage = null;
             _model.Message = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _statusMessage = null;
+        }
+    }
+
+    private async Task HandleTestLargeXmlClick()
+    {
+        try
+        {
+            var sourcePath = Path.Combine(WebHostEnvironment.ContentRootPath, "10MB_Payload.xml");
+            var filePath = await TempFileService.CopyLargeXmlPayloadAsync(sourcePath);
+
+            _statusMessage = $"Large XML payload was written successfully to {filePath}.";
+            _errorMessage = null;
         }
         catch (Exception ex)
         {

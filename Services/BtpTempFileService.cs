@@ -45,4 +45,24 @@ public sealed class BtpTempFileService
 
         return filePath;
     }
+
+    public async Task<string> CopyLargeXmlPayloadAsync(string sourcePath, string? directory = null, CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(sourcePath))
+        {
+            throw new FileNotFoundException("Sample XML payload was not found.", sourcePath);
+        }
+
+        var resolvedDirectory = ResolveTempDirectory(directory);
+        Directory.CreateDirectory(resolvedDirectory);
+
+        var fileName = $"btp-large-xml-{DateTime.UtcNow:yyyyMMddHHmmssfff}.xml";
+        var filePath = Path.Combine(resolvedDirectory, fileName);
+
+        await using var source = File.OpenRead(sourcePath);
+        await using var destination = File.Create(filePath);
+        await source.CopyToAsync(destination, cancellationToken);
+
+        return filePath;
+    }
 }

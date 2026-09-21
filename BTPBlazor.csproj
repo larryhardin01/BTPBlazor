@@ -13,4 +13,10 @@
     <None Remove="BTPBlazor.Tests/**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="10MB_Payload.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
