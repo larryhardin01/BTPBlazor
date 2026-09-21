@@ -15,6 +15,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddSingleton<BtpTempFileService>();
+builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
@@ -28,6 +29,12 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseAntiforgery();
+
+app.MapGet("/getLargeXML", (IWebHostEnvironment env) =>
+{
+    var path = Path.Combine(env.ContentRootPath, "10MB_Payload.xml");
+    return Results.File(path, "application/xml", fileDownloadName: "10MB_Payload.xml", enableRangeProcessing: true);
+});
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

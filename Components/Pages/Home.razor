@@ -3,6 +3,8 @@
 @using BTPBlazor.Services
 @inject BtpTempFileService TempFileService
 @inject IWebHostEnvironment WebHostEnvironment
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager NavigationManager
 
 <PageTitle>BTP Temp Message Writer</PageTitle>
 
@@ -80,7 +82,13 @@
 
         try
         {
-            var sourcePath = Path.Combine(WebHostEnvironment.ContentRootPath, "10MB_Payload.xml");
+            using var httpClient = HttpClientFactory.CreateClient();
+            httpClient.BaseAddress = new Uri(NavigationManager.BaseUri);
+
+            using var response = await httpClient.GetAsync("getLargeXML", HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync();
             var targetDirectory = TempFileService.ResolveTempDirectory();
 
             var onTargetFileCreated = new Action<string>(filePath =>
@@ -99,7 +107,7 @@
                 }
             });
 
-            var filePath = await TempFileService.CopyLargeXmlPayloadAsync(sourcePath, targetDirectory, progress, onTargetFileCreated);
+            var filePath = await TempFileService.WriteXmlStreamToTempFileAsync(responseStream, targetDirectory, progress, onTargetFileCreated);
 
             _statusMessage = $"Large XML payload was written successfully to {filePath}.";
             _errorMessage = null;

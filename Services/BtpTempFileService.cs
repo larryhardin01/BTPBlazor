@@ -55,10 +55,23 @@ public sealed class BtpTempFileService
             throw new FileNotFoundException("Sample XML payload was not found.", sourcePath);
         }
 
+        await using var source = File.OpenRead(sourcePath);
+        return await WriteSourceInChunksAsync(source, "btp-large-xml", directory, chunkProgress, onTargetFileCreated, cancellationToken);
+    }
+
+    public async Task<string> WriteXmlStreamToTempFileAsync(Stream source, string? directory = null, IProgress<int>? chunkProgress = null, Action<string>? onTargetFileCreated = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        return await WriteSourceInChunksAsync(source, "btp-large-xml-remote", directory, chunkProgress, onTargetFileCreated, cancellationToken);
+    }
+
+    private async Task<string> WriteSourceInChunksAsync(Stream source, string fileNamePrefix, string? directory, IProgress<int>? chunkProgress, Action<string>? onTargetFileCreated, CancellationToken cancellationToken)
+    {
         var resolvedDirectory = ResolveTempDirectory(directory);
         Directory.CreateDirectory(resolvedDirectory);
 
-        var fileName = $"btp-large-xml-{DateTime.UtcNow:yyyyMMddHHmmssfff}.xml";
+        var fileName = $"{fileNamePrefix}-{DateTime.UtcNow:yyyyMMddHHmmssfff}.xml";
         var filePath = Path.Combine(resolvedDirectory, fileName);
 
         // Step 1: create the empty spillover file.
@@ -69,7 +82,6 @@ public sealed class BtpTempFileService
         onTargetFileCreated?.Invoke(filePath);
 
         // Step 2-3: read the source in 1KB chunks, appending each chunk to the spillover file.
-        await using var source = File.OpenRead(sourcePath);
         await using var destination = new FileStream(filePath, FileMode.Append, FileAccess.Write, FileShare.None);
         var buffer = new byte[ChunkSizeBytes];
         int bytesRead;
