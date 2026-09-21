@@ -1,0 +1,63 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using BTPBlazor.Services
+@inject BtpTempFileService TempFileService
+
+<PageTitle>BTP Temp Message Writer</PageTitle>
+
+<h1>Write a message to the BTP temp directory</h1>
+
+<EditForm Model="_model" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label for="message" class="form-label">Message</label>
+        <InputTextArea id="message" class="form-control" @bind-Value="_model.Message" rows="5" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Write to temp file</button>
+</EditForm>
+
+@if (!string.IsNullOrWhiteSpace(_statusMessage))
+{
+    <div class="alert alert-success mt-3">
+        @_statusMessage
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <div class="alert alert-danger mt-3">
+        @_errorMessage
+    </div>
+}
+
+@code {
+    private readonly MessageRequest _model = new();
+    private string? _statusMessage;
+    private string? _errorMessage;
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            var targetDirectory = TempFileService.ResolveTempDirectory();
+            var filePath = await TempFileService.WriteMessageAsync(_model.Message, targetDirectory);
+
+            _statusMessage = $"Message was written successfully to {filePath}.";
+            _errorMessage = null;
+            _model.Message = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _statusMessage = null;
+        }
+    }
+
+    private sealed class MessageRequest
+    {
+        public string Message { get; set; } = string.Empty;
+    }
+}

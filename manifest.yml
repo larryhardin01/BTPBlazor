@@ -1,0 +1,9 @@
+applications:
+  - name: btpblazor
+    memory: 512M
+    stack: cflinuxfs4
+    # Let Cloud Foundry auto-detect the correct .NET buildpack.
+    env:
+      ASPNETCORE_ENVIRONMENT: Production
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      TMPDIR: /tmp
