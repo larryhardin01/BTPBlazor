@@ -22,6 +22,16 @@
 
 <button type="button" class="btn btn-secondary mt-3" @onclick="HandleTestLargeXmlClick">Test Large XML</button>
 
+@if (_chunkLog.Count > 0)
+{
+    <div class="mt-3" style="max-height: 300px; overflow-y: auto;">
+        @foreach (var entry in _chunkLog)
+        {
+            <div>@entry</div>
+        }
+    </div>
+}
+
 @if (!string.IsNullOrWhiteSpace(_statusMessage))
 {
     <div class="alert alert-success mt-3">
@@ -59,12 +69,37 @@
         }
     }
 
+    private const int ChunkLogRenderInterval = 25;
+    private readonly List<string> _chunkLog = new();
+
     private async Task HandleTestLargeXmlClick()
     {
+        _chunkLog.Clear();
+        _statusMessage = null;
+        _errorMessage = null;
+
         try
         {
             var sourcePath = Path.Combine(WebHostEnvironment.ContentRootPath, "10MB_Payload.xml");
-            var filePath = await TempFileService.CopyLargeXmlPayloadAsync(sourcePath);
+            var targetDirectory = TempFileService.ResolveTempDirectory();
+
+            var onTargetFileCreated = new Action<string>(filePath =>
+            {
+                _chunkLog.Add($"Target file: {filePath}");
+                StateHasChanged();
+            });
+
+            var progress = new Progress<int>(chunkNumber =>
+            {
+                _chunkLog.Add($"Chunk {chunkNumber} appended to file.");
+
+                if (chunkNumber % ChunkLogRenderInterval == 0)
+                {
+                    StateHasChanged();
+                }
+            });
+
+            var filePath = await TempFileService.CopyLargeXmlPayloadAsync(sourcePath, targetDirectory, progress, onTargetFileCreated);
 
             _statusMessage = $"Large XML payload was written successfully to {filePath}.";
             _errorMessage = null;
@@ -74,6 +109,8 @@
             _errorMessage = ex.Message;
             _statusMessage = null;
         }
+
+        StateHasChanged();
     }
 
     private sealed class MessageRequest

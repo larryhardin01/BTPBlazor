@@ -46,7 +46,9 @@ public sealed class BtpTempFileService
         return filePath;
     }
 
-    public async Task<string> CopyLargeXmlPayloadAsync(string sourcePath, string? directory = null, CancellationToken cancellationToken = default)
+    private const int ChunkSizeBytes = 1024;
+
+    public async Task<string> CopyLargeXmlPayloadAsync(string sourcePath, string? directory = null, IProgress<int>? chunkProgress = null, Action<string>? onTargetFileCreated = null, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(sourcePath))
         {
@@ -59,10 +61,29 @@ public sealed class BtpTempFileService
         var fileName = $"btp-large-xml-{DateTime.UtcNow:yyyyMMddHHmmssfff}.xml";
         var filePath = Path.Combine(resolvedDirectory, fileName);
 
-        await using var source = File.OpenRead(sourcePath);
-        await using var destination = File.Create(filePath);
-        await source.CopyToAsync(destination, cancellationToken);
+        // Step 1: create the empty spillover file.
+        await using (File.Create(filePath))
+        {
+        }
 
+        onTargetFileCreated?.Invoke(filePath);
+
+        // Step 2-3: read the source in 1KB chunks, appending each chunk to the spillover file.
+        await using var source = File.OpenRead(sourcePath);
+        await using var destination = new FileStream(filePath, FileMode.Append, FileAccess.Write, FileShare.None);
+        var buffer = new byte[ChunkSizeBytes];
+        int bytesRead;
+        var chunkNumber = 0;
+
+        while ((bytesRead = await source.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+            chunkNumber++;
+            chunkProgress?.Report(chunkNumber);
+        }
+
+        // Step 4: close the spillover file once all chunks have been written.
+        await destination.FlushAsync(cancellationToken);
         return filePath;
     }
 }
